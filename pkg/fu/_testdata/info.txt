@@ -1,0 +1,2 @@
+Symlinks are unsupported on Windows, so tests
+including symlinks should be executed on ...nix platforms only.
