@@ -7,11 +7,11 @@ import (
 	"os"
 	"path/filepath"
 
-	otiai10 "github.com/otiai10/copy"
+	otiai10 "github.com/iotanbo/copy"
 
 	"github.com/iotanbo/igu/pkg/ec"
 
-	//lint:ignore ST1001 - for clear and concise error handling.
+	//lint:ignore ST1001 - for concise error handling.
 	. "github.com/iotanbo/igu/pkg/errs"
 )
 
@@ -46,16 +46,25 @@ const (
 )
 
 // DestOverwriteMode defines action to be performed
-// when copying or moving files and destination already exists.
+// while copying/moving files and destination already exists.
 type DestOverwriteMode int32
 
 const (
-	// NO_OVERWRITE forbids overwriting destination.
+	// NO_OVERWRITE: if destination exists, no job will be done.
 	NO_OVERWRITE DestOverwriteMode = iota
-	// MERGE allows merging source with destination.
+	// MERGE: copy only items unique to source if destination exists.
+	// If file is common to source and destination,
+	// keep the one from destination.
 	MERGE
-	// OVERWRITE allows overwriting destination.
-	OVERWRITE
+	// OVERWRITE_INTERSECTION: overwrite only files common to source and destination;
+	// if destination is a directory,
+	// it will be preserved but any common file inside it will be overwritten.
+	// Items unique to destination will be kept intact.
+	OVERWRITE_INTERSECTION
+	// OVERWRITE_FULL: delete destination if exists
+	// and then completely rewrite it.
+	// All items unique to destination will be lost.
+	OVERWRITE_FULL
 )
 
 // CopyOptions specifies options to be applied when copying or moving file or directory.
@@ -64,8 +73,9 @@ type CopyOptions struct {
 	// [SYMLINK_SHALLOW (default), SYMLINK_DEEP, SYMLINK_UNMODIFIED].
 	SymlinkMode SymlinkCopyMode
 
-	// OverwriteMode defines action to be done if destination already exists:
-	// [NO_OVERWRITE (default), MERGE, OVERWRITE].
+	// OverwriteMode defines action to be taken if destination already exists:
+	// [fu.NO_OVERWRITE (default), fu.MERGE, fu.OVERWRITE_INTERSECTION,
+	// fu.OVERWRITE_FULL].
 	OverwriteMode DestOverwriteMode
 
 	// Skip defines if a file system item
@@ -252,16 +262,17 @@ func translateCopyOptions(o CopyOptions) otiai10.Options {
 	// OnDirExists
 	switch o.OverwriteMode {
 	case NO_OVERWRITE:
-		r.OnDirExists = func(src, dest string) otiai10.DirExistsAction {
-			return otiai10.Untouchable
+		r.OnDestExists = func(src, dest string) otiai10.DestExistsAction {
+			return otiai10.NoOverwrite
 		}
 	case MERGE:
-		r.OnDirExists = func(src, dest string) otiai10.DirExistsAction {
+		r.OnDestExists = func(src, dest string) otiai10.DestExistsAction {
 			return otiai10.Merge
 		}
-	case OVERWRITE:
-		r.OnDirExists = func(src, dest string) otiai10.DirExistsAction {
-			return otiai10.Replace
+
+	case OVERWRITE_INTERSECTION:
+		r.OnDestExists = func(src, dest string) otiai10.DestExistsAction {
+			return otiai10.OverwriteIntersection
 		}
 	}
 
@@ -272,6 +283,29 @@ func translateCopyOptions(o CopyOptions) otiai10.Options {
 			return false, nil // Don't skip
 		}
 	}
+	// Special Skip function to skip overwriting destination if it exists.
+	// if o.OverwriteMode == MERGE {
+	// 	r.Skip = func(path string) (bool, error) {
+	// 		// fmt.Printf("* DEBUG processing path '%s'\n", path)
+	// 		exists, itemType, e := PathExists(path)
+	// 		if e.Some() {
+	// 			return true, fmt.Errorf("can't check if path exists: '%s'", path)
+	// 		}
+
+	// 		if !exists {
+	// 			// Don't skip if destination does not exist
+	// 			fmt.Printf("* DEBUG path '%s' NOT exists, NOT skipping\n", path)
+	// 			return false, nil
+	// 		}
+	// 		if itemType == TYPE_DIR {
+	// 			fmt.Printf("* DEBUG path '%s' exists but is DIR, NOT skipping\n", path)
+	// 			return false, nil
+	// 		}
+	// 		fmt.Printf("* DEBUG path '%s' exists, SKIPPING\n", path)
+	// 		return true, nil // Skip
+	// 	}
+	// }
+
 	r.AddPermission = o.AddPermission
 	r.Sync = o.Sync
 	r.PreserveTimes = o.PreserveTimes
@@ -279,13 +313,13 @@ func translateCopyOptions(o CopyOptions) otiai10.Options {
 	return r
 }
 
-// Copy is a "swiss army knife" function that copies any kind of
-// file system item (file, dir, symlink etc.) into dest using the options.
+// Copy copies any kind of file system items (file, dir, symlink etc.)
+// into dest using specified options.
 // The default options are: symlink shallow copy, no overwrite dest, no skip,
 // no additional permissions, no sync, not preserve times,
 // use default 32KB buffer. Returns NoError if success. Otherwise:
 //	ec.NotFound // src not exists
-//	ec.AlreadyExists // dest exists and OverwriteMode is NO_OVERWRITE
+//	ec.AlreadyExists // dest exists and DestOverwriteMode is NO_OVERWRITE
 //	ec.Type // dest exists and has type different from src
 //	ec.PermissionDenied
 //	ec.TimedOut
@@ -329,14 +363,22 @@ func Copy(src, dest string, options ...CopyOptions) Err {
 		if srcType == destType {
 			if o.OverwriteMode == NO_OVERWRITE {
 				return Err{Code: ec.AlreadyExists, Msg: dest}
+			} else if o.OverwriteMode == OVERWRITE_FULL {
+				// OVERWRITE_FULL is treated only here;
+				// otiai10.Copy function does not have a notion
+				// of this mode.
+				if err := os.RemoveAll(dest); err != nil {
+					return FromError(err)
+				}
+				o.OverwriteMode = NO_OVERWRITE
 			}
 		} else {
 			// Dest already exists but its type doesn't match src
 			return Err{Code: ec.Type}
 		}
 	}
-	r := translateCopyOptions(o)
-	err := otiai10.Copy(src, dest, r)
+	trOpts := translateCopyOptions(o)
+	err := otiai10.Copy(src, dest, trOpts)
 	if err != nil {
 		return FromError(err)
 	}

@@ -39,7 +39,7 @@ func TestZipUnzip(t *testing.T) {
 	expect(t, e.None(), "Zip(srcDir, destDirArch): Expected NoError, got %v.", e)
 
 	// Unzip file
-	e = Unzip(destFile,
+	e = Unarchive(destFile,
 		"./_testdata/temp/extracted/",
 		FullOverwrite,
 	)
@@ -49,17 +49,6 @@ func TestZipUnzip(t *testing.T) {
 	expect(t, e.None())
 	expect(t, contents == "testfile.txt")
 
-	// Unzip dir
-	// e = Unzip(destDirArch,
-	// 	"./_testdata/temp/extracted/",
-	// 	FullOverwrite,
-	// )
-	// expect(t, e.None())
-	// // read the unzipped file and verify its contents
-	// contents, e = fu.ReadTextFile("./_testdata/temp/extracted/testdir/testfile.txt")
-	// expect(t, e.None())
-	// expect(t, contents == "testfile.txt")
-
 	// TEST OVERWRITE MODES
 
 	// When overwriteMode == Merge and destPath exists,
@@ -68,7 +57,7 @@ func TestZipUnzip(t *testing.T) {
 	e = fu.CreateTextFile("./_testdata/temp/extracted/testdir/testfile.txt", "previous_contents", true)
 	expect(t, e.None(), "Error: %v", e)
 	arch := "_testdata/temp/testdir.zip"
-	e = Unzip(arch,
+	e = Unarchive(arch,
 		"./_testdata/temp/extracted",
 		Merge,
 	)
@@ -84,7 +73,7 @@ func TestZipUnzip(t *testing.T) {
 
 	// When overwriteMode == SoftOverwrite and destPath exists,
 	// existing old files must be overwritten with new ones.
-	e = Unzip(arch,
+	e = Unarchive(arch,
 		"./_testdata/temp/extracted",
 		SoftOverwrite,
 	)
@@ -100,7 +89,7 @@ func TestZipUnzip(t *testing.T) {
 
 	// When overwriteMode == FullOverwrite and destPath exists,
 	// destination must be deleted and fully overwritten with new ones.
-	e = Unzip(arch,
+	e = Unarchive(arch,
 		"./_testdata/temp/extracted",
 		FullOverwrite,
 	)
@@ -115,7 +104,7 @@ func TestZipUnzip(t *testing.T) {
 
 	// When overwriteMode == NoOverwrite and destPath exists,
 	// destination must be kept intact and ec.AlreadyExists must be returned.
-	e = Unzip(arch,
+	e = Unarchive(arch,
 		"./_testdata/temp/extracted",
 		NoOverwrite,
 	)

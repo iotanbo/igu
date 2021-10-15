@@ -2,7 +2,7 @@
 
 ## Purpose
 
-IGU (Iotanbo Go Utils) is a multi-purpose Go utility library to provide a higher-level interface for working with files, archives, shell etc. It was created to be used internally by Iotanbo projects. Public usage is welcomed.
+IGU (Iotanbo Go Utils) is a multi-purpose Go utility library to provide a higher-level interface for working with files, archives, shell etc. It was created to be used internally by Iotanbo projects. Public usage would be welcome.
 
 
 ## Contributing

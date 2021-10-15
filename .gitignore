@@ -21,6 +21,8 @@ main
 # Temp directories at any level
 **/temp
 **/_temp
+**/~removed
+**/~deleted
 
 # Dependency directories
 

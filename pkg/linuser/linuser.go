@@ -10,7 +10,7 @@ import (
 
 	//"github.com/iotanbo/igu/pkg/sh"
 	//"github.com/iotanbo/igu/pkg/ec"
-	//lint:ignore ST1001 - for clear and concise error handling.
+	//lint:ignore ST1001 - for concise error handling.
 	. "github.com/iotanbo/igu/pkg/errs"
 )
 
@@ -398,4 +398,10 @@ func IsUserInGroup(userName string, groupName string, verbose ...bool) (bool, Er
 		}
 	}
 	return false, NoError
+}
+
+// Dummy is a function to check how changes in this module
+// immediately apply to another module
+func Dummy() {
+	fmt.Printf("* DUMMY MODIFIED2\n")
 }

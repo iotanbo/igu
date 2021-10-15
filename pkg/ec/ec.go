@@ -148,7 +148,7 @@ func ECToString(errCode ecdef.ErrCode) string {
 	case Value:
 		r = "ec.Value (value error)"
 	case Dummy:
-		r = "ec.Dummy (dummy error for testing purposes)"
+		r = "ec.Dummy (dummy error for testing purpose)"
 	case SymlinksNotSupported:
 		r = "ec.SymlinksNotSupported (Windows?)"
 	case ProcessExit:
